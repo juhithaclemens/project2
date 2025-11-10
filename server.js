@@ -9,10 +9,20 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 5000;
 
-// Relaxed CORS for local development (allows both localhost and 127.0.0.1 origins)
+// Enable CORS for development
 app.use(cors());
-// Ensure preflight requests are handled
-app.options("*", cors());
+
+// Fallback preflight handler (no app.options with "*" or "/*" to avoid path-to-regexp errors)
+app.use((req, res, next) => {
+  // Allow any origin in dev; change this to specific origins for production
+  res.header("Access-Control-Allow-Origin", "*");
+  res.header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept");
+  if (req.method === "OPTIONS") {
+    res.header("Access-Control-Allow-Methods", "GET,POST,PUT,DELETE,OPTIONS");
+    return res.sendStatus(200);
+  }
+  next();
+});
 
 // Parse JSON
 app.use(express.json());
