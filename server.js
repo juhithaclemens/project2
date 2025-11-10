@@ -9,8 +9,10 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 5000;
 
-// ✅ CORS middleware (only once)
-app.use(cors({ origin: "http://localhost:5173" }));
+// Relaxed CORS for local development (allows both localhost and 127.0.0.1 origins)
+app.use(cors());
+// Ensure preflight requests are handled
+app.options("*", cors());
 
 // Parse JSON
 app.use(express.json());

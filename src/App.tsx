@@ -1,8 +1,7 @@
-import React from 'react'
-import { Routes, Route, Link } from 'react-router-dom'
-import Home from './pages/Home'
-import About from './pages/About'
-import './App.css'
+import { Routes, Route, Link } from "react-router-dom";
+import Home from "./pages/Home";
+import About from "./pages/About";
+import "./App.css";
 
 export default function App() {
   return (
@@ -15,8 +14,11 @@ export default function App() {
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/about" element={<About />} />
+
+          {/* fallback to home for any unknown route */}
+          <Route path="*" element={<Home />} />
         </Routes>
       </main>
     </div>
-  )
+  );
 }
