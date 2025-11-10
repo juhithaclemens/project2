@@ -1,39 +1,21 @@
-import express from "express";
-import cors from "cors";
-import mongoose from "mongoose";
-import dotenv from "dotenv";
-import axios from "axios";
-
-dotenv.config();
+// Put at top of file if not already present
+require('dotenv').config();
+const express = require('express');
+const mongoose = require('mongoose');
+const axios = require('axios');
 
 const app = express();
-// Use a port unlikely to be claimed by macOS system services
-const PORT = process.env.PORT || 5001;
+const PORT = process.env.PORT || 3000;
 
-// Standard CORS middleware
-app.use(cors());
-
-// Universal middleware: log and ensure explicit CORS headers on every response
+// CORS + other middleware...
 app.use((req, res, next) => {
-  console.log(`[SERVER] ${new Date().toISOString()} - ${req.method} ${req.path} - Origin:`, req.headers.origin);
-  const origin = req.headers.origin || "*";
-  res.setHeader("Access-Control-Allow-Origin", origin);
+  res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept");
   res.setHeader("Access-Control-Allow-Methods", "GET,POST,PUT,DELETE,OPTIONS");
-  if (req.method === "OPTIONS") {
-    return res.sendStatus(200);
-  }
+  if (req.method === "OPTIONS") return res.sendStatus(200);
   next();
 });
-
-// Parse JSON
 app.use(express.json());
-
-// Keep the server running even if Mongo connection fails; log status
-mongoose
-  .connect(process.env.MONGO_URI)
-  .then(() => console.log("✅ MongoDB connected"))
-  .catch((err) => console.error("❌ MongoDB connection error:", err));
 
 // Schema + model
 const videoSchema = new mongoose.Schema({
@@ -44,25 +26,18 @@ const videoSchema = new mongoose.Schema({
 });
 const Video = mongoose.models.Video || mongoose.model("Video", videoSchema);
 
-// Health route for quick testing
+// Health route
 app.get("/health", (req, res) => {
-  res.json({ status: "ok", time: new Date().toISOString() });
+  res.json({ status: "ok", time: new Date().toISOString(), dbState: mongoose.connection.readyState });
 });
 
-// GET /api/videos — returns DB videos if connected, otherwise a demo array
+// GET /api/videos — return DB results only (no demo fallback)
 app.get("/api/videos", async (req, res) => {
-  console.log("[SERVER] /api/videos handler");
+  console.log("[SERVER] /api/videos handler - dbState=", mongoose.connection.readyState);
   try {
     if (mongoose.connection.readyState !== 1) {
-      console.log("[SERVER] MongoDB not connected — returning demo videos");
-      return res.json([
-        {
-          videoId: "demo1",
-          title: "Demo Video 1",
-          channel: "Demo Channel",
-          thumbnail: "https://via.placeholder.com/160x90.png?text=Demo+1",
-        },
-      ]);
+      // DB not connected — return clear error (no demo)
+      return res.status(503).json({ error: "Database not connected" });
     }
     const videos = await Video.find().lean().exec();
     res.json(videos);
@@ -72,7 +47,7 @@ app.get("/api/videos", async (req, res) => {
   }
 });
 
-// POST /api/videos/search — unchanged behavior, calls YouTube and seeds DB
+// POST /api/videos/search unchanged (calls YouTube and inserts into DB)
 app.post("/api/videos/search", async (req, res) => {
   const { query } = req.body;
   const API_KEY = process.env.YOUTUBE_API_KEY;
@@ -105,14 +80,17 @@ app.post("/api/videos/search", async (req, res) => {
   }
 });
 
-// handle unhandled rejections/uncaught exceptions in dev: log them
-process.on("unhandledRejection", (reason) => {
-  console.error("[UNHANDLED REJECTION]", reason);
-});
-process.on("uncaughtException", (err) => {
-  console.error("[UNCAUGHT EXCEPTION]", err);
-});
-
-app.listen(PORT, () => {
-  console.log(`🚀 Server running on http://localhost:${PORT}`);
-});
+// Connect to MongoDB, then start listening
+mongoose
+  .connect(process.env.MONGO_URI, { useNewUrlParser: true, useUnifiedTopology: true })
+  .then(() => {
+    console.log("✅ MongoDB connected");
+    app.listen(PORT, () => {
+      console.log(`🚀 Server running on http://localhost:${PORT}`);
+    });
+  })
+  .catch((err) => {
+    console.error("❌ MongoDB connection error:", err);
+    // Exit so the process doesn't silently serve demo data
+    process.exit(1);
+  });
