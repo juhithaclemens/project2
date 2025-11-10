@@ -1,6 +1,8 @@
 import { useState } from "react";
 import axios from "axios";
 
+const BASE = import.meta.env.VITE_API_BASE || "http://localhost:5001";
+
 type Video = {
   videoId?: string;
   title: string;
@@ -20,8 +22,7 @@ export default function Search() {
     setLoading(true);
     setError(null);
     try {
-      // backend endpoint accepts POST /api/videos/search with { query }
-      const res = await axios.post<Video[]>("http://localhost:5000/api/videos/search", { query: q });
+      const res = await axios.post<Video[]>(`${BASE}/api/videos/search`, { query: q });
       setResults(res.data);
     } catch (err: any) {
       setError(err?.message || "Search failed");

@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import axios from "axios";
 
+const BASE = import.meta.env.VITE_API_BASE || "http://localhost:5001";
+
 type Video = {
   _id?: string;
   videoId?: string;
@@ -17,7 +19,7 @@ export default function Trending() {
   useEffect(() => {
     setLoading(true);
     axios
-      .get<Video[]>("http://localhost:5000/api/videos")
+      .get<Video[]>(`${BASE}/api/videos`)
       .then((res) => setVideos(res.data))
       .catch((err) => setError(err.message || "Network error"))
       .finally(() => setLoading(false));
