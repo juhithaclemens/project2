@@ -1,42 +1,60 @@
 import { useState } from "react";
 import axios from "axios";
-import VideoList from "../components/VideoList";
+
+type Video = {
+  videoId?: string;
+  title: string;
+  channel: string;
+  thumbnail?: string;
+};
 
 export default function Search() {
-  const [query, setQuery] = useState("");
-  const [videos, setVideos] = useState<any[]>([]);
+  const [q, setQ] = useState("");
+  const [results, setResults] = useState<Video[] | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const handleSearch = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!query) return;
-
+  async function handleSearch(e?: React.FormEvent) {
+    e?.preventDefault();
+    if (!q.trim()) return;
+    setLoading(true);
+    setError(null);
     try {
-      const response = await axios.post("http://localhost:5000/api/videos/search", {
-        query,
-      });
-      setVideos(response.data);
-    } catch (err) {
-      console.error(err);
+      // backend endpoint accepts POST /api/videos/search with { query }
+      const res = await axios.post<Video[]>("http://localhost:5000/api/videos/search", { query: q });
+      setResults(res.data);
+    } catch (err: any) {
+      setError(err?.message || "Search failed");
+    } finally {
+      setLoading(false);
     }
-  };
+  }
 
   return (
-    <div style={{ padding: "1rem" }}>
-      <h1>Search YouTube Videos 🔎</h1>
-      <form onSubmit={handleSearch} style={{ marginBottom: "1rem" }}>
-        <input
-          type="text"
-          placeholder="Enter keyword..."
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          style={{ padding: "0.5rem", width: "300px" }}
-        />
-        <button type="submit" style={{ padding: "0.5rem 1rem", marginLeft: "0.5rem" }}>
-          Search
+    <section>
+      <h1>Search YouTube (via backend)</h1>
+      <form onSubmit={handleSearch}>
+        <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search query (e.g. react tutorial)" />
+        <button type="submit" disabled={loading}>
+          {loading ? "Searching..." : "Search"}
         </button>
       </form>
 
-      <VideoList videos={videos} />
-    </div>
+      {error && <p style={{ color: "red" }}>{error}</p>}
+
+      {results && (
+        <ul>
+          {results.map((v) => (
+            <li key={v.videoId}>
+              <img src={v.thumbnail} alt={v.title} style={{ width: 160 }} />
+              <div>
+                <strong>{v.title}</strong>
+                <div>{v.channel}</div>
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
   );
 }
